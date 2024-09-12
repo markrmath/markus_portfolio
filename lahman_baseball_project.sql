@@ -4,7 +4,7 @@ SELECT MIN(yearid), MAX(yearid)
 FROM teams;
 -- the database covers from year 1871 to 2016.
 
--- 5. Find the average number of strikeouts per game by decade since 1920. Round the numbers you report to 2 decimal places. 
+-- 2. Find the average number of strikeouts per game by decade since 1920. Round the numbers you report to 2 decimal places. 
 -- Do the same for home runs per game. Do you see any trends?
 
 SELECT CASE WHEN RIGHT(yearid::text, 2)::integer BETWEEN 10 AND 19 THEN '2010s' --case when 
@@ -27,7 +27,7 @@ ORDER BY decade;
 
 -- Its not a perfect correlation, but both the strikeouts per game and homeruns per game have risen steadily since 1920.
 
--- 6. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful.
+-- 3. Find the player who had the most success stealing bases in 2016, where __success__ is measured as the percentage of stolen base attempts which are successful.
 -- (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted _at least_ 20 stolen bases.
 
 SELECT namefirst,
@@ -46,7 +46,7 @@ LIMIT 1;
 
 -- The answer is Chris Owings, who successfully stole bases 91.3% of the time.
 
--- 7a. From 1970 – 2016, what is the largest number of wins for a team that did not win the world series?
+-- 4a. From 1970 – 2016, what is the largest number of wins for a team that did not win the world series?
 
 SELECT *
 FROM teams
@@ -57,7 +57,7 @@ LIMIT 1;
 
 -- The Seattle Mariners, one of the baseball's more cursed franchises, won 116 games in 2001 but failed to the world series.
 
--- 7b. What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion – determine why this is the case.
+-- 4b. What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion – determine why this is the case.
 
 SELECT *
 FROM teams
@@ -70,50 +70,50 @@ LIMIT 1;
 -- As to the why, all the teams that year played about 105-110 games as opposed to the 162 played in other years.
 -- A strike in 1981 caused over a third of the games to be cancelled.
 
--- 7c. Then redo your query, excluding the problem year. How often from 1970 – 2016 was it the case that a team with the most wins also won the world series?
+-- 4c. Then redo your query, excluding the problem year. How often from 1970 – 2016 was it the case that a team with the most wins also won the world series?
 -- What percentage of the time?
 
 WITH league_win_rank AS (SELECT name, --window function to cut out a lot of clutter and give each team a rank compared to the whole league, not just their division
-	  					 		w,
-						 		wswin, 
-						 		RANK() OVER (PARTITION BY yearid ORDER BY w DESC) AS total_league_win_rank
-						 FROM teams
-						 WHERE yearid <> 1981
-							  AND yearid >= 1970
-						ORDER BY total_league_win_rank) 
-SELECT COUNT(*) AS wswins_for_team_w_most_wins, -- note: one year didn't have a world series due to strike but count ignores nulls
-	   ROUND((COUNT(*)*1.0/46) * 100, 2) AS wswins_for_team_w_most_wins_percentage -- I  counted the amount of years not in sql because its not like it could be different.
+	  			w,
+				wswin, 
+				RANK() OVER (PARTITION BY yearid ORDER BY w DESC) AS total_league_win_rank
+			FROM teams
+			WHERE yearid <> 1981 AND yearid >= 1970
+			ORDER BY total_league_win_rank) 
+SELECT
+	COUNT(*) AS wswins_for_team_w_most_wins, -- note: one year didn't have a world series due to strike but count ignores nulls
+	ROUND((COUNT(*)*1.0/46) * 100, 2) AS wswins_for_team_w_most_wins_percentage -- I counted the amount of years not in sql because its not like it could be different.
 FROM league_win_rank
-WHERE wswin = 'Y'
-	  AND total_league_win_rank = 1;
+WHERE wswin = 'Y' AND total_league_win_rank = 1;
 
 -- The team with the most amount of wins won the world series 12/46 seasons (excluding 1981), or 26.09% of seasons checked.
 
--- 13. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective.
+-- 5. It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective.
 -- Investigate this claim and present evidence to either support or dispute this claim.
 
 WITH distinct_appearance_pitchers AS (SELECT DISTINCT playerid
-									   FROM appearances
-									   WHERE g_p >= 10) 
+				      FROM appearances
+				      WHERE g_p >= 10) 
 
-SELECT DISTINCT throws,
-				playerid,
-	   			COUNT(*) OVER (PARTITION BY throws) AS pitchers_by_handedness,
-				ROUND((COUNT(*) OVER (PARTITION BY throws)*1.0 / COUNT(*) OVER () * 100), 2) AS percentage_of_total_pitchers
+SELECT
+	DISTINCT throws,
+	playerid,
+	COUNT(*) OVER (PARTITION BY throws) AS pitchers_by_handedness,
+	ROUND((COUNT(*) OVER (PARTITION BY throws)*1.0 / COUNT(*) OVER () * 100), 2) AS percentage_of_total_pitchers
 FROM distinct_appearance_pitchers
-INNER JOIN people
-	USING (playerid)
-WHERE throws IS NOT NULL
-	AND throws <> 'S';
+	INNER JOIN people
+		USING (playerid)
+WHERE throws IS NOT NULL AND throws <> 'S';
 	
 -- 72.62% of pitchers are right-handed, 27.38% are left. There are 6195 players in the dataset that have pitched at least five times.
 -- I chose 10 times since there are instances where a non-pitcher will pitch (such as in the 16th inning of particularly long games).
 -- That threshold could cut off some pitchers who played very little, but only a few hundred players were removed in total and the percentage changed less than a percent.
 -- Are left-handed pitchers more likely to win the Cy Young Award?
 
-SELECT DISTINCT people.throws,
-	   COUNT(*) OVER (PARTITION BY throws) AS cy_young_winners,
-	   ROUND((COUNT(*) OVER (PARTITION BY throws)*1.0 / COUNT(*) OVER ()) * 100, 2) AS percentage_of_total_winners
+SELECT
+	DISTINCT people.throws,
+	COUNT(*) OVER (PARTITION BY throws) AS cy_young_winners,
+	ROUND((COUNT(*) OVER (PARTITION BY throws)*1.0 / COUNT(*) OVER ()) * 100, 2) AS percentage_of_total_winners
 FROM awardsplayers
 	INNER JOIN people
 		USING (playerid)
@@ -125,23 +125,23 @@ WHERE awardid = 'Cy Young Award';
 -- Are they more likely to make it into the hall of fame?
 
 WITH distinct_appearance_pitchers AS (SELECT DISTINCT playerid
-									   FROM appearances
-									   WHERE g_p >= 10) --filtering out all players that aren't pitchers, same criteria as above
-									   					-- it should be noted that at least babe ruth started as a pitcher, though he became famous as a hitter. 
-														-- He pitched for several seasons, meaning there wasn't a good way to filter him, 
-														-- and anyone who was in a similar boat, out from the data.
+				      FROM appearances
+				      WHERE g_p >= 10) --filtering out all players that aren't pitchers, same criteria as above
+							-- it should be noted that at least babe ruth started as a pitcher, though he became famous as a hitter. 
+							-- He pitched for several seasons, meaning there wasn't a good way to filter him, 
+							-- and anyone who was in a similar boat, out from the data.
 									   
-SELECT people.throws,
-	   people.namefirst || ' ' || people.namelast AS full_name,
-	   COUNT(*) OVER (PARTITION BY throws) AS hof_members,
-	   ROUND((COUNT(*) OVER (PARTITION BY throws)*1.0 / COUNT(*) OVER ()) * 100, 2) AS percentage_of_hof_pitchers
+SELECT
+	people.throws,
+	people.namefirst || ' ' || people.namelast AS full_name,
+	COUNT(*) OVER (PARTITION BY throws) AS hof_members,
+	ROUND((COUNT(*) OVER (PARTITION BY throws)*1.0 / COUNT(*) OVER ()) * 100, 2) AS percentage_of_hof_pitchers
 FROM halloffame
 	INNER JOIN distinct_appearance_pitchers
 		USING (playerid)
 	INNER JOIN people
 		USING (playerid)
-WHERE inducted = 'Y'
-	AND category = 'Player'; --I did this just in case some left-handed pitcher played a couple mediocre season but went on to be a HoF manager.
+WHERE inducted = 'Y' AND category = 'Player'; --I did this just in case some left-handed pitcher played a couple mediocre season but went on to be a HoF manager.
 							 --There 5 HoF members removed, even though the percentages didn't change much
 							 
 -- In the Hall of Fame, there are 74 pitchers. 18 of these are lefties, and 56 right-handed.
@@ -155,13 +155,14 @@ WHERE inducted = 'Y'
 -- Its possible that even though lefties aren't more likely to be successful, a few really good lefties are skewing the award average.
 
 WITH cy_young_wins_total AS (SELECT playerid,
-	   						 COUNT(*) AS number_of_cy_young_wins
-					   		 FROM awardsplayers
-							 WHERE awardid = 'Cy Young Award'
-							 GROUP BY playerid)						 
-SELECT people.throws,
-	   COUNT(playerid) AS total_cy_young_winners,
-	   SUM(number_of_cy_young_wins) AS total_cy_young_wins
+	   		     COUNT(*) AS number_of_cy_young_wins
+			     FROM awardsplayers
+			     WHERE awardid = 'Cy Young Award'
+			     GROUP BY playerid)						 
+SELECT
+	people.throws,
+	COUNT(playerid) AS total_cy_young_winners,
+	SUM(number_of_cy_young_wins) AS total_cy_young_wins
 FROM people
 	INNER JOIN cy_young_wins_total
 		USING (playerid)
